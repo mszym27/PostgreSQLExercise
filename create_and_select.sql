@@ -18,20 +18,21 @@ CREATE TABLE wybory.osoby (
     PRIMARY KEY(osobaPESEL)
 );
 
-/*TODO fk*/
-
 CREATE TABLE wybory.glosy (
     glosujacyPESEL CHAR(11) NOT NULL,
     kandydatPESEL CHAR(11) NULL,
     drugaTura BOOLEAN NOT NULL,
-    PRIMARY KEY(glosujacyPESEL, drugaTura) -- Nie można zmieniać zdania po oddaniu głosu w ramach jednej tury
+    PRIMARY KEY(glosujacyPESEL, drugaTura), -- Nie można zmieniać zdania po oddaniu głosu w ramach jednej tury
+    FOREIGN KEY(glosujacyPESEL) REFERENCES wybory.osoby(osobaPESEL),
+    FOREIGN KEY(kandydatPESEL) REFERENCES wybory.osoby(osobaPESEL)
 );
 
 CREATE TABLE wybory.kandydaci (
     kandydatPESEL CHAR(11),
-    nazwisko VARCHAR(40) NOT NULL, /* powielane w tej tabeli żeby uprościć przyszłe zapytania */
+    nazwisko VARCHAR(40) NOT NULL, /* powielane w tej tabeli żeby uprościć przyszłe zapytania, denormalizacja została przeprowadzona świadomie */
     drugaTura BOOLEAN NOT NULL,
-    PRIMARY KEY(kandydatPESEL)
+    PRIMARY KEY(kandydatPESEL),
+    FOREIGN KEY(kandydatPESEL) REFERENCES wybory.osoby(osobaPESEL)
 );
 
 /*dane testowe - osoby*/
@@ -182,7 +183,7 @@ INSERT INTO wybory.osoby (
 
 -- zapytanie(-a) SQL pozwalające sprawdzić czy dana osoba może zostać kandydatem 
 
-CREATE VIEW wybory.mozliwiKandydaci AS (
+CREATE VIEW wybory.dzienWyborow AS (
     WITH dwaTygodnieTemu AS (
         SELECT CURRENT_DATE - 14 AS data
     ),
@@ -201,20 +202,23 @@ CREATE VIEW wybory.mozliwiKandydaci AS (
         JOIN doNiedzieli
             ON 1 = 1
     )
+    SELECT dzienWyborow.data 
+    FROM dzienWyborow
+);
+
+ALTER TABLE wybory.osoby ADD COLUMN wiek INTEGER NULL;
+
+UPDATE wybory.osoby SET wiek = DATE_PART('year', AGE((SELECT data FROM wybory.dzienWyborow), osoby.dataUrodzenia));
+
+ALTER TABLE wybory.osoby ALTER COLUMN wiek SET NOT NULL;
+
+CREATE VIEW wybory.mozliwiKandydaci AS (
     SELECT
-        osobyWiek.osobaPESEL,
-        osobyWiek.nazwisko
-    FROM (
-        SELECT
-            osoby.osobaPESEL,
-            osoby.nazwisko,
-            DATE_PART('year', AGE( dzienWyborow.data, dataUrodzenia)) AS wiek
-        FROM wybory.osoby
-        JOIN dzienWyborow
-            ON 1 = 1
-    ) osobyWiek
-    /* Każda osoba posiadająca co najmniej 30, i nie więcej niż 100 lat, może zostać kandydatem */
-    WHERE osobyWiek.wiek BETWEEN 30 AND 100
+        osoby.osobaPESEL,
+        osoby.nazwisko
+    FROM wybory.osoby
+    -- Każda osoba posiadająca co najmniej 30, i nie więcej niż 100 lat, może zostać kandydatem
+    WHERE osoby.wiek BETWEEN 30 AND 100
 );
 
 SELECT mozliwiKandydaci.osobaPESEL
@@ -366,14 +370,15 @@ CREATE VIEW wybory.statystykiGlosow AS (
 SELECT
     glosujacyPESEL
 FROM wybory.glosy
-WHERE kandydatPESEL = (
-    SELECT
-        kandydat
-    FROM wybory.statystykiGlosow
-    WHERE drugaTura = FALSE
-    ORDER BY liczbaGlosow DESC
-    LIMIT 1
-);
+WHERE glosy.drugaTura = FALSE
+    AND kandydatPESEL = (
+        SELECT
+            kandydat
+        FROM wybory.statystykiGlosow
+        WHERE drugaTura = FALSE
+        ORDER BY liczbaGlosow DESC
+        LIMIT 1
+    );
 
 -- zapytanie(-a) SQL pozwalające pokazać listę wyborców kandydata, który otrzymał drugie miejsce;
 
@@ -388,7 +393,8 @@ JOIN (
     ORDER BY liczbaGlosow DESC
     LIMIT 1 OFFSET 1
 ) drugiCoDoPopularnosci
-ON drugiCoDoPopularnosci.kandydat = glosy.kandydatPESEL;
+    ON drugiCoDoPopularnosci.kandydat = glosy.kandydatPESEL
+WHERE glosy.drugaTura = FALSE;
 
 -- zapytanie(-a) SQL pozwalające pokazać procentowe wyniki kandydatów;
 
@@ -444,6 +450,8 @@ FROM (
     FROM wybory.statystykiGlosow
     WHERE statystykiGlosow.drugaTura = FALSE
 ) temp;
+
+-- Zadania zaawansowane (II tura wyborów)
 
 -- pobranie listę kandydatów na 2 turę (dla marszałka systemu);
 
@@ -631,7 +639,21 @@ JOIN wybory.glosy AS zdrajcyDruga
 
 -- pokazanie średniego wieku wyborców dla najmłodszego kandydata;
 
-/*TODO SELECT*/
+SELECT 
+    glosy.DrugaTura,
+    AVG(osoby.wiek) :: REAL
+FROM wybory.osoby
+JOIN wybory.glosy
+    ON glosy.glosujacyPESEL = osoby.osobaPESEL
+WHERE glosy.kandydatPESEL IN (
+    SELECT kandydaci.kandydatPESEL
+    FROM wybory.osoby
+    JOIN wybory.kandydaci
+        ON kandydaci.kandydatPESEL = osoby.osobaPESEL
+    ORDER BY osoby.wiek ASC
+    LIMIT 1
+)
+GROUP BY glosy.DrugaTura;
 
 -- pokazanie sumarycznej liczby głosów dla każdego z kandydatów (wliczając głosy w I i II tury);
 
