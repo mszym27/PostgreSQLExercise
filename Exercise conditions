@@ -1,0 +1,26 @@
+Exercise is meant to refresh PostgreSQL knowledge. It consists of creating a database that solves the following problem:
+Project manager elections has been held on Sunday. Each adult person on the team has the right to cast one vote in one round. Each person has a first name (up to 30 characters), middle name (up to 30 characters), surname (up to 40 characters), position (text name up to 100 characters), PESEL and date of birth.
+PESEL uniquely identifies the person. Thus displaying it can be considered equal to displaying person's data.
+Anyone of at least 30 years of age and not more than 100 years of age may become a candidate.
+A person who wants to become a candidate reports it to the admin of the system, specifying their
+PESEL number. Admin checks whether the person meets the age requirements - if yes, he or she allows the person to become a candidate.
+On the voting day, system admin announces the list of candidates. Anyone could vote for one of the candidates, the system records these votes. The vote doesn't have to be valid and employees could also  or not return it at all.
+There were 2 rounds of voting, each on a different day. In the first round one could vote for of all candidates, in the second only for the two who obtained the highest number of 
+votes in the first round.
+Rules of voting were the same as in first round.
+
+1. Database structure that allowed to store all the necessary information
+2. Check if a given person can become a candidates
+3. List of candidates
+4. Voting
+5. List of voters of the most popular candidate
+6. Voters of the candidate who received the second place
+7. Candidate results in percent
+8. For whom the candidates themselves voted
+9. Attendance: how many votes are cast, how many are invalid, how many are valid
+10. List of candidates for the second round
+11. People who voted for the candidate who did not get into the second round in the first round turns
+12. Were there people who have voted for the winner first round, but did no vote for him in the second round(traitors)? 
+13. Average age of voters for the youngest candidate
+14. Total number of votes for each candidate
+15. List of people who cast invalid votes in both rounds.
