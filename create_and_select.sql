@@ -1,8 +1,8 @@
 /*
-Zadania zrealizowano w PostgreSQL
+PostgreSQL
 */
 
---struktura bazy danych pozwalająca na zapisanie wszystkich niezbędnych informacji: kandydatów, głosujących, kto na kogo głosował (rozlokowanie na tabele jest dowolne);
+--1. Database structure that allowed to store all the necessary information
 
 DROP SCHEMA IF EXISTS wybory CASCADE;
 
@@ -35,7 +35,7 @@ CREATE TABLE wybory.kandydaci (
     FOREIGN KEY(kandydatPESEL) REFERENCES wybory.osoby(osobaPESEL)
 );
 
-/*dane testowe - osoby*/
+/* dane testowe - osoby */
 
 INSERT INTO wybory.osoby (
     osobaPESEL,
@@ -181,7 +181,7 @@ INSERT INTO wybory.osoby (
     '2001-02-14'
 );
 
--- zapytanie(-a) SQL pozwalające sprawdzić czy dana osoba może zostać kandydatem 
+-- 2. Check if a given person can become a candidates
 
 CREATE VIEW wybory.dzienWyborow AS (
     WITH dwaTygodnieTemu AS (
@@ -225,7 +225,7 @@ SELECT mozliwiKandydaci.osobaPESEL
 FROM wybory.mozliwiKandydaci
 WHERE mozliwiKandydaci.osobaPESEL = '00000000003';
 
-/* dane testowe - uzupełnienie tabeli kandydatów o osoby które zgłosiły się do Marszałka (i mogły zostać kandydatami) */
+/* dane testowe - osoby które zgłosiły się do admina (i mogły zostać kandydatami) */
 
 INSERT INTO wybory.kandydaci (
     kandydatPESEL,
@@ -245,12 +245,12 @@ WHERE mozliwiKandydaci.osobaPESEL IN (
     '00000000006'
 );
 
---zapytanie(-a) SQL pozwalające pobrać listę kandydatów;
+-- 3. List of candidates
 SELECT kandydaci.kandydatPESEL
 FROM wybory.kandydaci
 WHERE drugaTura = FALSE;
 
---zapytanie(-a) SQL pozwalające oddać głos;
+-- 4. Voting
 /* dane testowe - uzupełnienie danych testowych dla pierwszej i drugiej tury wyborów */
 
 /* przyjmuję że głosujący zidentyfikuje się swoim PESELem i wprowadzi nazwisko osoby na którą głosuje
@@ -356,7 +356,7 @@ LEFT JOIN wybory.kandydaci AS kandydat
     ON kandydat.nazwisko = 'Nowak'
 WHERE glosujacy.osobaPESEL = '00000000008';
 
--- zapytanie(-a) SQL pozwalające pokazać listę wyborców najpopularniejszego kandydata;
+-- 5. List of voters of the most popular candidate
 
 CREATE VIEW wybory.statystykiGlosow AS (
     SELECT
@@ -380,7 +380,7 @@ WHERE glosy.drugaTura = FALSE
         LIMIT 1
     );
 
--- zapytanie(-a) SQL pozwalające pokazać listę wyborców kandydata, który otrzymał drugie miejsce;
+-- 6. Voters of the candidate who received the second place
 
 SELECT
     glosujacyPESEL
@@ -396,7 +396,7 @@ JOIN (
     ON drugiCoDoPopularnosci.kandydat = glosy.kandydatPESEL
 WHERE glosy.drugaTura = FALSE;
 
--- zapytanie(-a) SQL pozwalające pokazać procentowe wyniki kandydatów;
+-- 7. Candidate results in percent
 
 SELECT
     temp.kandydat,
@@ -409,7 +409,7 @@ FROM (
     FROM wybory.statystykiGlosow
 ) temp;
 
--- zapytanie(-a) SQL pozwalające pokazać procentowe wyniki kandydatów z uwzględnieniem jedynie głosów kandydatów (na kogo sami kandydujący głosowali);
+-- 8. For whom the candidates themselves voted?
 
 WITH glosyKandydatow AS (
     SELECT
@@ -436,7 +436,7 @@ JOIN (
 ) AS kompletnaLiczbaGlosowKandydaci
 ON TRUE;
 
--- pokanie frekwencję (ile oddanych głosów, ile nieważnych, ile ważnych).
+-- 9. Attendance: how many votes are cast, how many are invalid, how many are valid?
 
 SELECT
     temp.ileOddanych,
@@ -451,9 +451,7 @@ FROM (
     WHERE statystykiGlosow.drugaTura = FALSE
 ) temp;
 
--- Zadania zaawansowane (II tura wyborów)
-
--- pobranie listę kandydatów na 2 turę (dla marszałka systemu);
+-- 10. List of candidates for the second round
 
 UPDATE wybory.kandydaci
     SET drugaTura = TRUE
@@ -608,7 +606,7 @@ LEFT JOIN wybory.kandydaci AS kandydat
     AND kandydat.drugaTura = TRUE
 WHERE glosujacy.osobaPESEL = '00000000009';
 
--- pobranie listę osób, które w pierwszej turze głosowały na kandydata, który nie dostał się do drugiej tury;
+-- 11. People who voted for the candidate who did not get into the second round in the first round turns
 /* celowo pomija glosy niewazne */
 
 SELECT glosujacyPESEL
@@ -618,7 +616,7 @@ JOIN wybory.kandydaci
     AND kandydaci.drugaTura = FALSE
 WHERE glosy.drugaTura = FALSE;
 
--- czy istniały osoby, które w pierwszej turze zagłosowały na zwycięzcę całych wyborów, ale nie zagłosowały na niego w II turze (zdrajcy)? -- Lista do pobrania;
+-- 12. Were there people who have voted for the winner first round, but did no vote for him in the second round (traitors)?
 
 WITH zwyciezca AS (
     SELECT statystykiGlosow.kandydat
@@ -637,7 +635,7 @@ JOIN wybory.glosy AS zdrajcyDruga
     AND zdrajcyDruga.kandydatPESEL != zwyciezca.kandydat
     AND zdrajcyDruga.drugaTura = TRUE;
 
--- pokazanie średniego wieku wyborców dla najmłodszego kandydata;
+-- 13. Average age of those who voted for the youngest candidate
 
 SELECT 
     glosy.DrugaTura,
@@ -655,7 +653,7 @@ WHERE glosy.kandydatPESEL IN (
 )
 GROUP BY glosy.DrugaTura;
 
--- pokazanie sumarycznej liczby głosów dla każdego z kandydatów (wliczając głosy w I i II tury);
+-- 14. Total number of votes for each candidate
 
 SELECT 
     statystykiGlosow.kandydat,
@@ -663,7 +661,7 @@ SELECT
 FROM wybory.statystykiGlosow
 GROUP BY statystykiGlosow.kandydat;
 
--- pokazanie listy osób, które oddały nieważny głos w obu turach.
+-- 15. List of people who cast invalid votes in both rounds.
 
 SELECT pierwszaTura.glosujacyPESEL
 FROM wybory.glosy pierwszaTura
